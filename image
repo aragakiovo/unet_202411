@@ -1,0 +1,44 @@
+import cv2
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+
+images = os.listdir(val_img_files)
+mask = os.listdir(val_label_files)
+
+model = unet()
+model.load_weights('./save_weights/myUnet.h5')
+
+prediction_overlap = []
+for i in range(20):
+    img = cv2.imread(os.path.join(val_img_files,images[i]))
+    img = cv2.resize(img ,(416, 416))
+    img1 = img / 255
+    img1 = img1[np.newaxis, :, :, :]
+    prediction=model.predict(img1)
+    prediction = np.squeeze(prediction)
+    ground_truth = cv2.resize(cv2.imread(os.path.join(val_label_files,mask[i])),(416,416))
+    ground_truth = cv2.cvtColor(ground_truth, cv2.COLOR_BGR2GRAY)
+    ret, thresh_gt= cv2.threshold(ground_truth, 127, 255, 0)
+    contours, hierarchy = cv2.findContours(thresh_gt, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    overlap_img = cv2.drawContours(img, contours, -1, (0, 255, 0),2)
+
+    prediction[np.nonzero(prediction < 0.3)] = 0.0
+    prediction[np.nonzero(prediction >= 0.3)] = 255.
+    prediction = prediction.astype("uint8")
+    ret_p, thresh_p = cv2.threshold(prediction, 127, 255, 0)
+    contours_p, hierarchy_p = cv2.findContours(thresh_p, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    overlap_img = cv2.drawContours(img, contours_p, -1, (255,36,0),2)
+    prediction_overlap.append(overlap_img)
+
+plt.figure(figsize=(20,20))
+for i in range(len(prediction_overlap)):
+    plt.subplot(4,5,i+1)
+    plt.imshow(prediction_overlap[i])
+    plt.title('Predict Image')
+    plt.xticks([])
+    plt.yticks([])
+
+
+plt.savefig("Predict.png")
+plt.show()
